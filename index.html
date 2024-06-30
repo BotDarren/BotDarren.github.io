@@ -1,1 +1,228 @@
-"Hello World" 
+<html>
+<head>
+    <title>Renewable Energy Usage</title>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <style>
+        #chart {}
+        .annotation {
+            position: absolute;
+            top: 550px;
+            right: 1000px;
+            padding: 10px;
+            max-width: 1000px;
+        }
+
+        #eventDetails {
+            position: absolute;
+            top: 50px;
+            right: 100px;
+            padding: 10px;
+            max-width: 500px;
+        }
+
+        #eventDescription {
+            position: absolute;
+            top: 270px;
+            right: 100px;
+            padding: 10px;
+            max-width: 700px;
+        }
+    </style>
+</head>
+
+<body>
+<h2>Global Renewable Energy Usage Over Time</h2>
+<div id="chart"><div class="tooltip" id="tooltip"></div></div>
+
+
+<div class="annotation">
+    <p><strong>Highlighted Renewable Energy Sources:</strong> Wind, Hydro, Solar, Other</p>
+    <p>Wind: The kinetic energy in wind is converted into useful forms of energy such as mechanical energy or electricity.</p>
+    <p>Hydro: Hydropower, or hydroelectric power, is one of the oldest and largest sources of renewable energy, which uses the natural flow of moving water to generate electricity. </p>
+    <p>Solar: Solar energy uses the sun's light and heat to generate renewable or green power.</p>
+    <p>Other: Other renewable energy sources such as bioenergy are alternative renewable energy sources from the above three.</p>
+</div>
+
+<div id="eventDetails">
+    <div id="eventImage" style="float:left"></div>
+    <p id="eventDescription"></p>
+</div>
+
+<script>
+    // Used https://d3-graph-gallery.com/graph/line_basic.html and
+    // https://d3-graph-gallery.com/graph/line_several_group.html
+    var margin = {top: 20, right: 150, bottom: 50, left: 80},
+        width = 1200 - margin.left - margin.right,
+        height = 500 - margin.top - margin.bottom;
+
+    var svg = d3.select("#chart").append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    d3.csv("./modern-renewable-prod.csv").then(data => {
+        var worldData = data.filter(d => d.Entity === "World");
+
+        worldData.forEach(d => {
+            d.Year = +d.Year;
+            d.Wind = +d.Wind;
+            d.Hydro = +d.Hydro;
+            d.Solar = +d.Solar;
+            d.Other = +d.Other;
+        });
+
+        // List of enery sources
+        var keys = ["Wind", "Hydro", "Solar", "Other"];
+
+        // Add X axis
+        var x = d3.scaleLinear()
+            .domain(d3.extent(worldData, d => d.Year))
+            .range([0, width]);
+        svg.append("g")
+            .attr("transform", "translate(0," + height + ")")
+            .call(d3.axisBottom(x));
+
+        svg.append("text")
+            .attr("text-anchor", "middle")
+            .attr("x", width)
+            .attr("y", height + margin.bottom - 10)
+            .text("Year");
+
+        // Add Y axis
+        var y = d3.scaleLinear()
+            .domain([0, d3.max(worldData, d => Math.max(d.Wind, d.Hydro, d.Solar, d.Other))])
+            .range([height, 0]);
+
+        svg.append("g")
+            .call(d3.axisLeft(y));
+
+        svg.append("text")
+            .attr("text-anchor", "end")
+            .attr("transform", "rotate(-90)")
+            .attr("y", -margin.left + 20)
+            .attr("x", -20)
+            .text("Energy Production (TWh)");
+
+        // Color palette
+        var color = d3.scaleOrdinal()
+            .domain(keys)
+            .range(['#e41a1c','#377eb8','#4daf4a','#984ea3'])
+
+
+
+        // Draw the line
+        keys.forEach(function(key) {
+            svg.append("path")
+                .datum(worldData)
+                .attr("fill", "none")
+                .attr("stroke", color(key))
+                .attr("stroke-width", 1.5)
+                .attr("d", d3.line()
+                    .x(d => x(d.Year))
+                    .y(d => y(d[key]))
+                )
+                .on("mouseover", function(event, d) {
+                    d3.select(this).attr("stroke-width", 5);
+
+                    var tooltip = d3.select("#tooltip");
+                    var offsetX = 15;
+                    var offsetY = 15;
+
+                    var top5 = {
+                        "Wind": "<br>Top 5 Wind Producers:<br>1) China<br>2) United States<br>3) Germany<br>4) India<br>5) Spain",
+                        "Hydro": "<br>Top 5 Hydro Producers:<br>1) China<br>2) Brazil<br>3) Canada<br>4) United States<br>5) Russia",
+                        "Solar": "<br>Top 5 Solar Producers:<br>1) China<br>2) United States<br>3) Japan<br>4) Germany<br>5) India",
+                        "Other": "<br>Top 5 Other Producers:<br>1) Brazil<br>2) United States<br>3) Germany<br>4) China<br>5) Canada"
+                    };
+
+                    tooltip.style("left", (event.pageX + offsetX) + "px")
+                        .style("top", (event.pageY + offsetY) + "px")
+                        .style("position", "absolute")
+                        .style("display", "block")
+                        .html(`<strong>${key} Energy:</strong> ${top5[key]}`);
+
+                })
+                .on("mousemove", function(event) {
+                    var tooltip = d3.select("#tooltip");
+                    var offsetX = 15;
+                    var offsetY = 15;
+
+                    tooltip.style("left", (event.pageX + offsetX) + "px")
+                        .style("top", (event.pageY + offsetY) + "px");
+                })
+                .on("mouseout", function() {
+                    d3.select(this).attr("stroke-width", 1.5);
+
+                    d3.select("#tooltip").style("display", "none");
+                });
+        });
+
+        // Add labels
+        svg.selectAll(".label")
+            .data(keys)
+            .enter().append("text")
+            .attr("class", "label")
+            .attr("x", width)
+            .attr("y", d => y(worldData[worldData.length - 1][d]))
+            .style("fill", d => color(d))
+            .text(d => d);
+
+        // Annotations for major climate events
+        var events = [
+            {year: 1997, first: "Kyoto", second: "Protocol", image: "kyoto.jpg"},
+            {year: 2010, first: "Cancun", second: "Agreements", image: "cancun.jpg"},
+            {year: 2015, first: "Paris", second: "Agreements", image: "paris.jpg"},
+        ];
+
+        var description = {
+            "Kyoto": "<br><b>Kyoto Protocol:</b><br>The&nbsp;Kyoto Protocol&nbsp;was adopted on 11 December 1997. Owing to a complex ratification process, it entered into force on 16 February 2005. Currently, there are 192 Parties to the Kyoto Protocol.<br>In short, the Kyoto Protocol operationalizes the United Nations Framework Convention on Climate Change by committing industrialized countries and economies in transition to limit and reduce&nbsp;greenhouse gases (GHG)&nbsp;emissions&nbsp;in accordance with agreed individual targets. The Convention itself only asks those countries to adopt policies and measures on mitigation and to report periodically.",
+            "Paris": "<br><b>Paris Agreements:</b><br>The Paris Agreement is a <strong>legally binding international treaty on climate change</strong>. It was adopted by 196 Parties at the UN Climate Change Conference (COP21) in Paris, France, on 12 December 2015. It entered into force on 4 November 2016.<br>\n" +
+                "<br>\n" +
+                "Its overarching goal is to hold \"the increase in the global average temperature to well below 2 degrees celsius above pre-industrial levels\" and pursue efforts \"to limit the temperature increase to 1.5 degrees celsius above pre-industrial levels.\"<br>\n",
+            "Cancun": "<br><b>Cancun Agreements:</b><br>The Cancun Agreements constituted a significant achievement for the UN climate process.<br>\n" +
+                "<br>\n" +
+                "They form the pillars of <span style=\"FONT-WEIGHT: bold\">the largest collective effort </span>the world has ever seen to reduce emissions, in a mutually accountable way, with national plans captured formally at international level under the banner of the UNFCCC.<br>\n" +
+                "<br>\n" +
+                "The Cancun Agreements also included <span style=\"FONT-WEIGHT: bold\">the most comprehensive package </span>ever agreed by governments to help developing nations deal with climate change. It encompassed finance, technology and capacity-building support to help such countries meet urgent needs to adapt to climate change, and to speed up their plans to adopt sustainable paths to low emission economies that could also resist the negative impacts of climate change."
+        };
+
+        events.forEach(event => {
+            svg.append("line")
+                .attr("x1", x(event.year))
+                .attr("x2", x(event.year))
+                .attr("y1", 15)
+                .attr("y2", height)
+                .attr("stroke", "grey")
+                .attr("stroke-width", 2)
+                .on("mouseover", function() {
+                    d3.select(this).attr("stroke-width", 10).attr("stroke", "black");
+                })
+                .on("mouseout", function() {
+                    d3.select(this).attr("stroke-width", 2).attr("stroke", "grey");
+                })
+                .on("click", function() {
+                    d3.select("#eventImage").html(`<img src="./${event.image}" style="height: 300px; width: 400px; object-fit: cover;">`);
+                    d3.select("#eventDescription").html(`${description[event.first]}`);
+                });
+
+            svg.append("text")
+                .attr("x", x(event.year))
+                .attr("y", 10)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "12px")
+                .attr("fill", "black")
+                .text(event.second);
+
+            svg.append("text")
+                .attr("x", x(event.year))
+                .attr("y", -5)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "12px")
+                .attr("fill", "black")
+                .text(event.first);
+        });
+    });
+</script>
+</body>
+</html>
